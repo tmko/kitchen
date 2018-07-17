@@ -5,10 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.json.BasicJsonParser;
 import org.springframework.boot.json.JsonParser;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
@@ -31,8 +28,9 @@ public class Menu {
     @PostConstruct
     public void init () {
         menus = load();
+        String latest = menus.keySet().stream().max(String::compareTo).get();
+        menus.put("current", menus.get(latest) );
     }
-
 
     @GetMapping
     public ResponseEntity<String> getMenu ()
@@ -41,15 +39,24 @@ public class Menu {
     }
 
     @GetMapping("/{version}")
-    public ResponseEntity<String> getMenu (@PathVariable(value = "version") String version)
+    public ResponseEntity<String> getMenu (@PathVariable("version") String version)
     {
         return generalGet(version);
     }
 
     @GetMapping("/refresh")
-    public ResponseEntity<String> refresh () {
+    public ResponseEntity<String> refresh (@RequestParam("current") String version) {
+        if (version == null || version.isEmpty())
+            return ResponseEntity.badRequest().body("Query parameter, current, is missing.");
+
         this.menus = load();
-        return ResponseEntity.ok().body("refreshing done");
+        String temp = this.menus.get(version);
+        if ( temp == null )
+            return ResponseEntity.badRequest().body("Query parameter, current, is not found.");
+        else {
+            this.menus.put("current", temp);
+            return ResponseEntity.ok().body("refreshing done<br>" + temp);
+        }
     }
 
     private ResponseEntity<String> generalGet (String version) {
